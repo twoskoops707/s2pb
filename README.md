@@ -21,4 +21,29 @@ workflow (`.github/workflows/build-apk.yml`) compiles it on every push to
 `main` and uploads `app-debug.apk` as a workflow artifact — check the
 Actions tab for the download.
 
+### Resyncing the catalog
+
+There's no live connection between an installed Android app and a Claude
+Code install — the app reads a JSON file you export instead:
+
+1. After installing/removing agents or skills, run:
+   ```
+   python3 tools/export_catalog.py
+   ```
+   (writes to `/storage/emulated/0/Public/skills-catalog-sync.json` by
+   default; pass a different path as the first argument).
+2. In the app, tap **Sync** and pick that file. It's a one-time pick —
+   Android grants a persistent permission to that file, so the app
+   silently re-reads it on every later launch. Run step 1 again whenever
+   the catalog changes, then relaunch the app (or tap Sync again if you
+   picked a different file).
+
+### Settings
+
+Tap **Settings** for background color, text color (10 curated swatches
+each), and font (System / Serif / Monospace). Applied live via CSS custom
+properties in `index.html` — everything else (borders, muted text, chip
+states) derives from those two colors with `color-mix()`, so there's no
+way to end up with a broken-looking in-between state.
+
 License: MIT.
