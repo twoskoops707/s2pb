@@ -14,36 +14,49 @@ Live: https://claude.ai/code/artifact/eb630a23-678d-4e75-af78-353b32c6608f
 
 ## Android app
 
-`app/` is a minimal WebView wrapper (`MainActivity.java`) around a standalone
-copy of the same catalog UI (`app/src/main/assets/index.html` — plain HTML/JS,
-no editor chrome, works fully offline). The `Build APK` GitHub Actions
-workflow (`.github/workflows/build-apk.yml`) compiles it on every push to
-`main` and uploads `app-debug.apk` as a workflow artifact — check the
-Actions tab for the download.
+`app/` is a full-screen WebView around `app/src/main/assets/index.html` — a
+dark, searchable index of everything installed in Claude Code: agents,
+skills, slash commands, plugins, hooks, MCP servers and LSP servers, with
+full descriptions and live status.
 
-### Resyncing the catalog
+- **Search** covers names, descriptions *and* the body text of each skill /
+  agent / command, with highlighted matches.
+- **Tabs** per kind, chips per plugin/category, and a status filter on the
+  MCP and Plugins tabs (connected / needs auth / failed / not configured,
+  enabled / disabled), with the error text for anything that failed.
+- **Tap any card** for the full description, contents, version, endpoint,
+  source path and a copy button.
+- **Settings** (gear): accent color, text size, manual sync-file picker,
+  update check.
 
-There's no live connection between an installed Android app and a Claude
-Code install — the app reads a JSON file you export instead:
+### Sync with Claude Code
 
-1. After installing/removing agents or skills, run:
+Data comes from `tools/export_catalog.py`, which reads `~/.claude` plus
+`claude plugin list --json` and `claude mcp list` (health checks).
+
+1. A Claude Code **SessionStart hook** runs on every session:
    ```
-   python3 tools/export_catalog.py
+   cd /root/s2pb && (nohup setsid sh -c 'python3 tools/export_catalog.py --fast; python3 tools/s2pb_server.py' > /tmp/s2pb.log 2>&1 &)
    ```
-   (writes to `/storage/emulated/0/Public/skills-catalog-sync.json` by
-   default; pass a different path as the first argument).
-2. In the app, tap **Sync** and pick that file. It's a one-time pick —
-   Android grants a persistent permission to that file, so the app
-   silently re-reads it on every later launch. Run step 1 again whenever
-   the catalog changes, then relaunch the app (or tap Sync again if you
-   picked a different file).
+   It re-exports the catalog (skipping slow MCP health checks) and starts
+   the local helper API if it isn't running.
+2. **`tools/s2pb_server.py`** serves `127.0.0.1:8765` (loopback only):
+   `GET /catalog`, `GET /status`, `POST /refresh` (full export incl. MCP
+   health, ~1–2 min). The app's ↻ button calls `/refresh`.
+3. The app loads, in order: live helper → the shared file
+   (`/storage/emulated/0/Public/skills-catalog-sync.json`, picked once via
+   Settings → *Choose sync file*) → the snapshot bundled in the APK. It
+   reloads every time it comes to the foreground.
 
-### Settings
+Manual export: `python3 tools/export_catalog.py` (full) or `--fast`.
 
-Tap **Settings** for background color, text color (10 curated swatches
-each), and font (System / Serif / Monospace). Applied live via CSS custom
-properties in `index.html` — everything else (borders, muted text, chip
-states) derives from those two colors with `color-mix()`, so there's no
-way to end up with a broken-looking in-between state.
+### Builds and updates
+
+`.github/workflows/build-apk.yml` builds on every push to `main`;
+`versionCode` is the workflow run number. The app checks
+`releases/latest` of this repo on launch and shows an *Update* banner when
+a newer `v<run>` release with an `.apk` asset exists. `app/build.gradle`
+signs release builds with the keystore given in `SIGNING_KEYSTORE` /
+`SIGNING_PASSWORD` (falls back to debug signing).
 
 License: MIT.

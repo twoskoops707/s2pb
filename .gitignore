@@ -3,3 +3,4 @@
 app/build/
 apk-out/
 apk-out2/
+__pycache__/

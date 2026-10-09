@@ -2,6 +2,10 @@ plugins {
     id("com.android.application")
 }
 
+// CI sets these; local builds fall back to version 1 / debug signing.
+def runNumber = (System.getenv("GITHUB_RUN_NUMBER") ?: "1").toInteger()
+def keystorePath = System.getenv("SIGNING_KEYSTORE")
+
 android {
     namespace "com.s2pb.skillsindex"
     compileSdk 34
@@ -10,8 +14,26 @@ android {
         applicationId "com.s2pb.skillsindex"
         minSdk 21
         targetSdk 34
-        versionCode 2
-        versionName "1.1"
+        versionCode runNumber
+        versionName "2.${runNumber}"
+    }
+
+    signingConfigs {
+        release {
+            if (keystorePath) {
+                storeFile file(keystorePath)
+                storePassword System.getenv("SIGNING_PASSWORD")
+                keyAlias "s2pb"
+                keyPassword System.getenv("SIGNING_PASSWORD")
+            }
+        }
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+            signingConfig keystorePath ? signingConfigs.release : signingConfigs.debug
+        }
     }
 
     compileOptions {
