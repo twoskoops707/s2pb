@@ -79,8 +79,12 @@ public class MainActivity extends Activity {
     @Override
     public void onBackPressed() {
         webView.evaluateJavascript("window.onBack && window.onBack()", handled -> {
-            if (!"true".equals(handled)) MainActivity.super.onBackPressed();
+            if (!"true".equals(handled)) superBack();
         });
+    }
+
+    private void superBack() {
+        super.onBackPressed();
     }
 
     // ---------- catalog ----------
